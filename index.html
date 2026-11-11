@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call of Duty // Tactical AI Coach</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        tactical: {
+                            bg: '#07090c',
+                            card: '#0f131a',
+                            border: '#1e2634',
+                            accent: '#ffb703', // MW Gold/Amber
+                            goldGlow: 'rgba(255, 183, 3, 0.15)',
+                            textBright: '#ffffff',
+                            muted: '#8b9bb4'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #07090c; color: #f3f4f6; overflow-x: hidden; }
+        h1, h2, h3, .tactical-font { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.08em; }
+        
+        /* High-End Tactical Military HUD Glassmorphism & Scanners */
+        .hud-panel {
+            background: linear-gradient(135deg, rgba(15, 19, 26, 0.95) 0%, rgba(10, 13, 18, 0.98) 100%);
+            border: 1px solid #1e2634;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+        .hud-panel::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 8px; height: 8px; border-top: 2px solid #ffb703; border-left: 2px solid #ffb703;
+        }
+        .hud-panel::after {
+            content: ''; position: absolute; bottom: 0; right: 0; width: 8px; height: 8px; border-bottom: 2px solid #ffb703; border-right: 2px solid #ffb703;
+        }
+        
+        .glow-gold { box-shadow: 0 0 20px rgba(255, 183, 3, 0.25); }
+        .scanlines {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+        
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #07090c; }
+        ::-webkit-scrollbar-thumb { background: #1e2634; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #ffb703; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-[#ffb703] selection:text-black relative">
+
+    <!-- Subtle Military Overlay Scanlines -->
+    <div class="absolute inset-0 scanlines z-40 fixed"></div>
+
+    <!-- Top Tactical Status Bar -->
+    <header class="bg-[#0f131a] border-b border-[#1e2634] sticky top-0 z-50 backdrop-blur-md bg-opacity-95">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 bg-[#ffb703] animate-ping"></div>
+                <h1 class="text-xl font-bold tracking-wider text-white">COD <span class="text-[#ffb703]">//</span> TACTICAL AI COACH</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="hidden sm:flex items-center space-x-2 text-xs font-mono bg-[#07090c] px-3 py-1.5 rounded border border-[#1e2634]">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-gray-300">TELEMETRY: SECURE</span>
+                </div>
+                <button onclick="triggerNotification('AI Core', 'Scanning live weapon telemetry and match packets...')" class="bg-[#ffb703]/10 hover:bg-[#ffb703]/20 text-[#ffb703] border border-[#ffb703]/30 px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition">
+                    System Diagnostic
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-3 max-w-sm w-full"></div>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 relative z-10">
+
+        <!-- Navigation Sidebar -->
+        <aside class="lg:col-span-1 space-y-4">
+            <div class="hud-panel p-4">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 font-mono">COMMAND DIRECTORY</h3>
+                <nav class="space-y-1.5">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full text-left px-3.5 py-3 text-sm font-semibold tracking-wide bg-[#ffb703]/10 text-[#ffb703] border-l-2 border-[#ffb703] transition flex items-center justify-between">
+                        <span>01. Tactical Dashboard</span>
+                        <span class="text-[10px] font-mono opacity-70">MAIN</span>
+                    </button>
+                    <button onclick="switchTab('matches')" id="nav-matches" class="w-full text-left px-3.5 py-3 text-sm font-semibold tracking-wide text-gray-400 hover:text-white hover:bg-[#151c28] transition flex items-center justify-between">
+                        <span>02. Match Logs & Analytics</span>
+                        <span class="text-[10px] font-mono opacity-70">AAR</span>
+                    </button>
+                    <button onclick="switchTab('youtube')" id="nav-youtube" class="w-full text-left px-3.5 py-3 text-sm font-semibold tracking-wide text-gray-400 hover:text-white hover:bg-[#151c28] transition flex items-center justify-between">
+                        <span>03. YouTube & Video Feed</span>
+                        <span class="text-[10px] font-mono opacity-70">SYNC</span>
+                    </button>
+                    <button onclick="switchTab('controller')" id="nav-controller" class="w-full text-left px-3.5 py-3 text-sm font-semibold tracking-wide text-gray-400 hover:text-white hover:bg-[#151c28] transition flex items-center justify-between">
+                        <span>04. Controller Tuning</span>
+                        <span class="text-[10px] font-mono opacity-70">SENS</span>
+                    </button>
+                    <button onclick="switchTab('loadouts')" id="nav-loadouts" class="w-full text-left px-3.5 py-3 text-sm font-semibold tracking-wide text-gray-400 hover:text-white hover:bg-[#151c28] transition flex items-center justify-between">
+                        <span>05. Gunsmith Visualizer</span>
+                        <span class="text-[10px] font-mono opacity-70">ARMORY</span>
+                    </button>
+                    <button onclick="switchTab('settings')" id="nav-settings" class="w-full text-left px-3.5 py-3 text-sm font-semibold tracking-wide text-gray-400 hover:text-white hover:bg-[#151c28] transition flex items-center justify-between">
+                        <span>06. API Configuration</span>
+                        <span class="text-[10px] font-mono opacity-70">CONFIG</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Telemetry Card -->
+            <div class="hud-panel p-4">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 font-mono">SYSTEM SPEC</h3>
+                <div class="space-y-2 text-xs font-mono text-gray-300">
+                    <div class="flex justify-between"><span>PLATFORM:</span> <span class="text-[#ffb703]">PLAYSTATION 5</span></div>
+                    <div class="flex justify-between"><span>ENGINE:</span> <span class="text-emerald-400">GEMINI 2.5 FLASH</span></div>
+                    <div class="flex justify-between"><span>LATENCY:</span> <span class="text-emerald-400">14MS</span></div>
+                    <div class="flex justify-between"><span>STATUS:</span> <span class="text-emerald-400">CONNECTED</span></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Dynamic Workspace Content -->
+        <section class="lg:col-span-3 space-y-6">
+
+            <!-- TAB 1: DASHBOARD -->
+            <div id="tab-dashboard" class="space-y-6">
+                <!-- Welcome Banner -->
+                <div class="hud-panel p-6 bg-gradient-to-r from-[#0f131a] to-[#151c28]">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <span class="text-xs font-mono text-[#ffb703] tracking-widest uppercase">AFTER-ACTION REPORT // SECURE CHANNEL</span>
+                            <h2 class="text-2xl sm:text-3xl font-bold tracking-wide mt-1 text-white">OPERATOR COMMAND CENTER</h2>
+                            <p class="text-sm text-gray-400 mt-1">AI coaching neural network is actively monitoring your gameplay loop.</p>
+                        </div>
+                        <button onclick="switchTab('matches')" class="bg-[#ffb703] hover:bg-[#e0a102] text-black px-5 py-2.5 font-bold text-xs uppercase tracking-wider transition glow-gold">
+                            + Log New Match
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Grid (Fixed Total Kills instead of static matches) -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="hud-panel p-4">
+                        <span class="text-xs text-gray-400 uppercase font-mono">Overall K/D Ratio</span>
+                        <div class="text-3xl font-bold text-white mt-1 tactical-font" id="stat-kd">1.42</div>
+                        <div class="text-xs text-emerald-400 mt-1 flex items-center">▲ Optimal performance zone</div>
+                    </div>
+                    <div class="hud-panel p-4">
+                        <span class="text-xs text-gray-400 uppercase font-mono">Total Kills Logged</span>
+                        <div class="text-3xl font-bold text-[#ffb703] mt-1 tactical-font" id="stat-kills-total">44</div>
+                        <div class="text-xs text-gray-400 mt-1">Sum of recorded matches</div>
+                    </div>
+                    <div class="hud-panel p-4">
+                        <span class="text-xs text-gray-400 uppercase font-mono">Win Rate</span>
+                        <div class="text-3xl font-bold text-white mt-1 tactical-font" id="stat-winrate">68.5%</div>
+                        <div class="text-xs text-emerald-400 mt-1">Squad sync stable</div>
+                    </div>
+                </div>
+
+                <!-- AI Tactical Briefing -->
+                <div class="hud-panel p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold tracking-wide flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 bg-[#ffb703]"></span>
+                            <span>GEMINI TACTICAL BRIEFING</span>
+                        </h3>
+                        <span class="text-xs font-mono bg-[#ffb703]/10 text-[#ffb703] px-2.5 py-1 border border-[#ffb703]/30">LIVE DEEP-SCAN</span>
+                    </div>
+                    <div class="bg-[#07090c] p-4 border border-[#1e2634] space-y-3 text-sm text-gray-300">
+                        <p id="ai-summary-text">"Telemetry indicates peak gunfight efficiency during mid-range engagements on Terminal. Recommendation: Equip the MCW Tactical Stability build for your upcoming Hardpoint queue to mitigate recoil spread during continuous firing."</p>
+                        <div class="border-t border-[#1e2634] pt-3 flex flex-wrap gap-2 text-xs font-mono">
+                            <span class="bg-[#0f131a] px-2.5 py-1 text-[#ffb703] border border-[#1e2634]">FOCUS: RECOIL CONTROL</span>
+                            <span class="bg-[#0f131a] px-2.5 py-1 text-emerald-400 border border-[#1e2634]">LOADOUT: MCW META</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: MATCH LOGS -->
+            <div id="tab-matches" class="space-y-6 hidden">
+                <div class="hud-panel p-6">
+                    <h2 class="text-xl font-bold mb-4">LOG A NEW MATCH</h2>
+                    <form id="match-form" onsubmit="handleMatchSubmit(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-mono text-gray-400 mb-1">MAP NAME</label>
+                            <input type="text" id="match-map" required placeholder="e.g. Terminal, Highrise, Rust" class="w-full bg-[#07090c] border border-[#1e2634] p-2.5 text-sm text-white focus:border-[#ffb703] focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono text-gray-400 mb-1">GAME MODE</label>
+                            <select id="match-mode" class="w-full bg-[#07090c] border border-[#1e2634] p-2.5 text-sm text-white focus:border-[#ffb703] focus:outline-none">
+                                <option>Hardpoint</option>
+                                <option>Search & Destroy</option>
+                                <option>Control</option>
+                                <option>Team Deathmatch</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono text-gray-400 mb-1">KILLS</label>
+                            <input type="number" id="match-kills" required min="0" placeholder="28" class="w-full bg-[#07090c] border border-[#1e2634] p-2.5 text-sm text-white focus:border-[#ffb703] focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono text-gray-400 mb-1">DEATHS</label>
+                            <input type="number" id="match-deaths" required min="0" placeholder="14" class="w-full bg-[#07090c] border border-[#1e2634] p-2.5 text-sm text-white focus:border-[#ffb703] focus:outline-none">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <button type="submit" class="w-full bg-[#ffb703] hover:bg-[#e0a102] text-black font-bold py-2.5 text-xs uppercase tracking-wider transition glow-gold">
+                                Save Match & Trigger AI Analysis
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="hud-panel p-6">
+                    <h3 class="text-lg font-bold mb-4">MATCH HISTORY LOG</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-[#07090c] text-gray-400 font-mono text-xs">
+                                <tr>
+                                    <th class="p-3">MAP / MODE</th>
+                                    <th class="p-3">K / D</th>
+                                    <th class="p-3">RATIO</th>
+                                    <th class="p-3">STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="match-table-body" class="divide-y divide-[#1e2634]">
+                                <tr class="hover:bg-[#151c28]">
+                                    <td class="p-3 font-semibold">Terminal <span class="text-xs text-gray-400 block font-normal">Hardpoint</span></td>
+                                    <td class="p-3">32 / 18</td>
+                                    <td class="p-3 text-emerald-400 font-mono font-bold">1.77</td>
+                                    <td class="p-3"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 text-xs border border-emerald-500/30">WIN</span></td>
+                                </tr>
+                                <tr class="hover:bg-[#151c28]">
+                                    <td class="p-3 font-semibold">Sub Base <span class="text-xs text-gray-400 block font-normal">Search & Destroy</span></td>
+                                    <td class="p-3">12 / 10</td>
+                                    <td class="p-3 text-[#ffb703] font-mono font-bold">1.20</td>
+                                    <td class="p-3"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 text-xs border border-emerald-500/30">WIN</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: YOUTUBE & VIDEO FEED -->
+            <div id="tab-youtube" class="space-y-6 hidden">
+                <div class="hud-panel p-6 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-xl font-bold">YOUTUBE PLAYLIST TELEMETRY</h2>
+                            <p class="text-sm text-gray-400">Automated queue syncing with your PlayStation clips playlist.</p>
+                        </div>
+                        <button onclick="triggerNotification('YouTube Sync', 'Playlist scanned: No unanalyzed clips found.')" class="bg-[#ffb703] hover:bg-[#e0a102] text-black px-4 py-2 font-bold text-xs uppercase tracking-wider transition">
+                            Sync Playlist
+                        </button>
+                    </div>
+
+                    <div class="bg-[#07090c] p-4 border border-[#1e2634] space-y-3">
+                        <div class="flex items-center justify-between text-xs font-mono text-gray-400 border-b border-[#1e2634] pb-2">
+                            <span>CONNECTED PLAYLIST:</span>
+                            <span class="text-white">Call of Duty AI Coach (ID: PL_COD_9921)</span>
+                        </div>
+                        <div class="space-y-2" id="youtube-clip-list">
+                            <div class="flex items-center justify-between p-3 bg-[#0f131a] border border-[#1e2634] text-sm">
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-[#ffb703] font-mono">▶</span>
+                                    <span>Match_Highlight_Terminal_Hardpoint_04.mp4</span>
+                                </div>
+                                <span class="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/30">PROCESSED</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hud-panel p-6 space-y-4">
+                    <h2 class="text-xl font-bold">MANUAL CLIP LINKING</h2>
+                    <p class="text-sm text-gray-400">Paste your YouTube gameplay clip URL below for immediate AI frame analysis.</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="manual-clip-url" placeholder="https://www.youtube.com/watch?v=..." class="flex-1 bg-[#07090c] border border-[#1e2634] p-2.5 text-sm text-white focus:border-[#ffb703] focus:outline-none">
+                        <button onclick="submitManualClip()" class="bg-[#ffb703] hover:bg-[#e0a102] text-black px-5 py-2.5 font-bold text-xs uppercase tracking-wider transition glow-gold">
+                            Analyze Clip
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: CONTROLLER TUNING -->
+            <div id="tab-controller" class="space-y-6 hidden">
+                <div class="hud-panel p-6 space-y-4">
+                    <h2 class="text-xl font-bold">CONTROLLER PRECISION TUNING</h2>
+                    <p class="text-sm text-gray-400">AI-optimized curves for PlayStation DualSense controllers.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-[#07090c] p-4 border border-[#1e2634]">
+                            <span class="text-xs font-mono text-gray-400">LEFT STICK DEADZONE</span>
+                            <div class="text-2xl font-bold text-white mt-1">5 (Min) / 99 (Max)</div>
+                            <p class="text-xs text-emerald-400 mt-1">Optimal for responsive movement.</p>
+                        </div>
+                        <div class="bg-[#07090c] p-4 border border-[#1e2634]">
+                            <span class="text-xs font-mono text-gray-400">RIGHT STICK DEADZONE</span>
+                            <div class="text-2xl font-bold text-[#ffb703] mt-1">6 (Min) / 99 (Max)</div>
+                            <p class="text-xs text-gray-400 mt-1">Prevents drift while maximizing micro-adjustments.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: GUNSMITH VISUALIZER -->
+            <div id="tab-loadouts" class="space-y-6 hidden">
+                <div class="hud-panel p-6 space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <span class="text-xs font-mono text-[#ffb703] tracking-widest uppercase">AI GUNSMITH KNOWLEDGE BASE</span>
+                            <h2 class="text-2xl font-bold mt-1 text-white" id="gunsmith-title">MCW // TACTICAL STABILITY BUILD</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="selectWeapon('MCW')" class="bg-[#ffb703] text-black px-3 py-1.5 text-xs font-bold font-mono">MCW</button>
+                            <button onclick="selectWeapon('Striker')" class="bg-[#07090c] text-gray-300 border border-[#1e2634] hover:text-white px-3 py-1.5 text-xs font-bold font-mono">STRIKER</button>
+                            <button onclick="selectWeapon('BP50')" class="bg-[#07090c] text-gray-300 border border-[#1e2634] hover:text-white px-3 py-1.5 text-xs font-bold font-mono">BP50</button>
+                        </div>
+                    </div>
+
+                    <!-- Gunsmith Card Visualizer -->
+                    <div class="bg-[#07090c] border border-[#1e2634] p-6 text-center relative overflow-hidden">
+                        <div class="absolute top-2 right-2 text-[10px] font-mono text-gray-500">MW_ARMORY_V4</div>
+                        
+                        <!-- Simulated In-Game Gun Graphic & HUD Wireframe -->
+                        <div class="py-6 border-b border-[#1e2634] mb-6">
+                            <div class="inline-block px-3 py-1 bg-[#ffb703]/10 text-[#ffb703] border border-[#ffb703]/30 text-xs font-mono mb-3 uppercase tracking-widest" id="gun-class-tag">
+                                ASSAULT RIFLE // META CLASS
+                            </div>
+                            <div class="text-3xl font-bold tracking-wider text-white tactical-font" id="gun-name">MCW TACTICAL FLEX</div>
+                            <p class="text-xs text-gray-400 max-w-lg mx-auto mt-2" id="gun-desc">Configured by Gemini AI for absolute zero-recoil beam performance across mid-range lanes.</p>
+                        </div>
+
+                        <!-- Gunsmith Attachment 5-Slot Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-left">
+                            <div class="bg-[#0f131a] p-3 border border-[#1e2634]">
+                                <span class="text-[10px] font-mono text-gray-400 block">MUZZLE</span>
+                                <span class="text-xs font-bold text-white block mt-1" id="slot-muzzle">VT-7 Spitfire Suppressor</span>
+                            </div>
+                            <div class="bg-[#0f131a] p-3 border border-[#1e2634]">
+                                <span class="text-[10px] font-mono text-gray-400 block">BARREL</span>
+                                <span class="text-xs font-bold text-white block mt-1" id="slot-barrel">16.5" Cyclone Long</span>
+                            </div>
+                            <div class="bg-[#0f131a] p-3 border border-[#1e2634]">
+                                <span class="text-[10px] font-mono text-gray-400 block">OPTIC</span>
+                                <span class="text-xs font-bold text-white block mt-1" id="slot-optic">JAK Glassless Optic</span>
+                            </div>
+                            <div class="bg-[#0f131a] p-3 border border-[#1e2634]">
+                                <span class="text-[10px] font-mono text-gray-400 block">STOCK</span>
+                                <span class="text-xs font-bold text-white block mt-1" id="slot-stock">RA Skeletal Stock</span>
+                            </div>
+                            <div class="bg-[#0f131a] p-3 border border-[#1e2634]">
+                                <span class="text-[10px] font-mono text-gray-400 block">REAR GRIP</span>
+                                <span class="text-xs font-bold text-white block mt-1" id="slot-grip">RB Regal Heavy Grip</span>
+                            </div>
+                        </div>
+
+                        <!-- Tuning & Copy Bar -->
+                        <div class="mt-6 pt-4 border-t border-[#1e2634] flex flex-col sm:flex-row justify-between items-center text-xs font-mono text-gray-400 gap-3">
+                            <span id="gun-tuning">TUNING: RECOIL STABILITY (+0.82oz) / ADS SPEED (-0.24in)</span>
+                            <button onclick="triggerNotification('Gunsmith', 'Loadout schema copied to clipboard.')" class="bg-[#ffb703]/10 hover:bg-[#ffb703]/20 text-[#ffb703] border border-[#ffb703]/30 px-4 py-2 uppercase font-bold transition">
+                                Copy Tuning Stats
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: SETTINGS -->
+            <div id="tab-settings" class="space-y-6 hidden">
+                <div class="hud-panel p-6 space-y-4">
+                    <h2 class="text-xl font-bold">OPERATOR & API CONFIGURATION</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-mono text-gray-400 mb-1">ACTIVISION ID</label>
+                            <input type="text" id="setting-activision" value="Operator#1234" class="w-full bg-[#07090c] border border-[#1e2634] p-2.5 text-sm text-white focus:border-[#ffb703] focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono text-gray-400 mb-1">GEMINI API KEY</label>
+                            <input type="password" id="setting-apikey" placeholder="AIzaSy..." class="w-full bg-[#07090c] border border-[#1e2634] p-2.5 text-sm text-white focus:border-[#ffb703] focus:outline-none">
+                        </div>
+                        <button onclick="saveSettings()" class="bg-[#ffb703] hover:bg-[#e0a102] text-black px-6 py-2.5 font-bold text-xs uppercase tracking-wider transition glow-gold">
+                            Save Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-[#0f131a] border-t border-[#1e2634] mt-12 py-4 text-center text-xs font-mono text-gray-500 relative z-10">
+        COD TACTICAL AI COACH // MILITARY SECURE PWA // ALL RIGHTS RESERVED
+    </footer>
+
+    <!-- Core Interactive Logic -->
+    <script>
+        // Gunsmith Knowledge Base Database
+        const weaponDatabase = {
+            "MCW": {
+                name: "MCW TACTICAL FLEX",
+                tag: "ASSAULT RIFLE // META CLASS",
+                desc: "Configured by Gemini AI for absolute zero-recoil beam performance across mid-range lanes.",
+                muzzle: "VT-7 Spitfire Suppressor",
+                barrel: "16.5" Cyclone Long",
+                optic: "JAK Glassless Optic",
+                stock: "RA Skeletal Stock",
+                grip: "RB Regal Heavy Grip",
+                tuning: "TUNING: RECOIL STABILITY (+0.82oz) / ADS SPEED (-0.24in)"
+            },
+            "Striker": {
+                name: "STRIKER CLOSE-QUARTERS",
+                tag: "SMG // AGGRESSIVE ENTRY",
+                desc: "Lightning-fast sprint-to-fire speed optimized for hardpoint hill clearing and close-quarters snapping.",
+                muzzle: "Sonic Suppressor SMG",
+                barrel: "Striker Recon Long Barrel",
+                optic: "MK. 3 Reflector",
+                stock: "No Stock",
+                grip: "Stippled Grip Tape",
+                tuning: "TUNING: SPRINT TO FIRE (-0.35s) / DAMAGE RANGE (+0.50in)"
+            },
+            "BP50": {
+                name: "BP50 SPEED DEMON",
+                tag: "ASSAULT RIFLE // HIGH ROF",
+                desc: "Unmatched fire rate with customized recoil management for aggressive slayer playstyles.",
+                muzzle: "Casus Brake",
+                barrel: "MOAT-40 Heavy Barrel",
+                optic: "Slate Reflector",
+                stock: "Fortress Stock",
+                grip: "TAC Grip",
+                tuning: "TUNING: RECOIL CONTROL (+0.60oz) / AIM STABILITY (+0.30in)"
+            }
+        };
+
+        function selectWeapon(key) {
+            const w = weaponDatabase[key];
+            if(!w) return;
+            document.getElementById('gun-name').innerText = w.name;
+            document.getElementById('gun-class-tag').innerText = w.tag;
+            document.getElementById('gun-desc').innerText = w.desc;
+            document.getElementById('slot-muzzle').innerText = w.muzzle;
+            document.getElementById('slot-barrel').innerText = w.barrel;
+            document.getElementById('slot-optic').innerText = w.optic;
+            document.getElementById('slot-stock').innerText = w.stock;
+            document.getElementById('slot-grip').innerText = w.grip;
+            document.getElementById('gun-tuning').innerText = w.tuning;
+            triggerNotification('Armory', `Loaded AI configuration for ${key}.`);
+        }
+
+        function switchTab(tabId) {
+            ['dashboard', 'matches', 'youtube', 'controller', 'loadouts', 'settings'].forEach(t => {
+                const el = document.getElementById('tab-' + t);
+                if(el) el.classList.add('hidden');
+                const btn = document.getElementById('nav-' + t);
+                if(btn) {
+                    btn.className = "w-full text-left px-3.5 py-3 text-sm font-semibold tracking-wide text-gray-400 hover:text-white hover:bg-[#151c28] transition flex items-center justify-between";
+                }
+            });
+            const target = document.getElementById('tab-' + tabId);
+            if(target) target.classList.remove('hidden');
+            const activeBtn = document.getElementById('nav-' + tabId);
+            if(activeBtn) {
+                activeBtn.className = "w-full text-left px-3.5 py-3 text-sm font-semibold tracking-wide bg-[#ffb703]/10 text-[#ffb703] border-l-2 border-[#ffb703] transition flex items-center justify-between";
+            }
+        }
+
+        function triggerNotification(title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = "hud-panel p-4 text-sm shadow-2xl border-l-4 border-l-[#ffb703] animate-pulse flex flex-col space-y-1";
+            toast.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-[#ffb703] uppercase text-xs tracking-wider">${title}</span>
+                    <span class="text-[10px] font-mono text-gray-400">SECURE LINK</span>
+                </div>
+                <p class="text-gray-300 text-xs">${message}</p>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Match Log and Dynamic Kills Calculation
+        let totalKillsSum = 44; // Initial sum of default demo rows (32 + 12)
+
+        function handleMatchSubmit(e) {
+            e.preventDefault();
+            const map = document.getElementById('match-map').value;
+            const mode = document.getElementById('match-mode').value;
+            const kills = parseInt(document.getElementById('match-kills').value);
+            const deaths = parseInt(document.getElementById('match-deaths').value);
+            const kd = deaths === 0 ? kills : (kills / deaths).toFixed(2);
+            
+            const tbody = document.getElementById('match-table-body');
+            const row = document.createElement('tr');
+            row.className = "hover:bg-[#151c28]";
+            row.innerHTML = `
+                <td class="p-3 font-semibold">${map} <span class="text-xs text-gray-400 block font-normal">${mode}</span></td>
+                <td class="p-3">${kills} / ${deaths}</td>
+                <td class="p-3 text-[#ffb703] font-mono font-bold">${kd}</td>
+                <td class="p-3"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 text-xs border border-emerald-500/30">LOGGED</span></td>
+            `;
+            tbody.insertBefore(row, tbody.firstChild);
+
+            // Update total kills stat correctly
+            totalKillsSum += kills;
+            document.getElementById('stat-kills-total').innerText = totalKillsSum;
+
+            document.getElementById('match-form').reset();
+            switchTab('dashboard');
+            triggerNotification('AAR Packet', `Match logged: ${map} (${kills} kills). AI telemetry updated.`);
+        }
+
+        function submitManualClip() {
+            const url = document.getElementById('manual-clip-url').value;
+            if(!url) {
+                triggerNotification('Error', 'Please enter a valid YouTube gameplay URL.');
+                return;
+            }
+            triggerNotification('AI Video Pipeline', 'Clip URL ingested. Gemini neural network analyzing frames...');
+            document.getElementById('manual-clip-url').value = '';
+        }
+
+        function saveSettings() {
+            triggerNotification('System Config', 'Operator credentials and API keys securely stored.');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                triggerNotification('Modern Warfare HUD', 'Encrypted tactical connection established. Systems nominal.');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
